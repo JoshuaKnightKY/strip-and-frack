@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset=utf-8 />
+  <title>Dual-use Power Plants: Coal and Natural Gas</title>
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" />
+  <link href='http://fonts.googleapis.com/css?family=Lato' rel='stylesheet' type='text/css'>
+  <link href="https://fonts.googleapis.com/css?family=Gloria+Hallelujah|Itim" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: whitesmoke;
+      font-family: Lato, sans-serif;
+      color: #0D0000;
+    }
+
+    header {
+      padding: 6px 10%;
+    }
+
+    h1 {
+      font-family: 'Gloria Hallelujah', cursive;
+      display: inline-block;
+      margin-right: 20px;
+      color: #001323;
+    }
+
+    h2 {
+      font-family: 'Itim', cursive;
+      display: inline-block;
+      color: #001323;
+    }
+
+    #map {
+      width: 80%;
+      height: 540px;
+      margin: 10px auto;
+    }
+
+    footer {
+      padding: 6px 10%;
+      width: 80%;
+    }
+
+    p {
+      font-size: 1em;
+      color: #001323;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1><font color="#E17922">Strip</font> & <font color="#489272">Frack</font></h1>
+    <h2>Coal and Natural Gas Plants of the United States</h2>
+  </header>
+
+  <div id='map'></div>
+
+  <footer>
+    <p>Map authored by Joshua Knight</p>
+    <p>This color coded map shows power plants across the U.S. that use <b>both</b> natural gas and coal to produce energy.
+      The circle's size represents total plant capacity, with larger circles representing higher capacity.
+      <font color="#489272"><b>Green</b></font> represents power plants with a capacity dominated by <font color="#489272"><b>natural gas</b></font>
+      while <font color="#E17922"><b>dark orange</b></font> represents power plants with capacity dominated by <font color="E17922"><b>coal</b></font>.</p>
+      <p>The tooltip shows total capacity and it's breakdown by fuel source.</p>
+  </footer>
+  <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
+  <script src="data/power-plants.js"></script>
+  <script>
+    var map = L.map('map', {
+      center: [36, -94],
+      zoom: 4,
+    });
+
+    var tiles = L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/dark_all/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    });
+
+    tiles.addTo(map);
+
+    // sort to display smaller markers on top of larger markers (largest drawn first)
+
+    plants.features.sort(function(a, b) {
+      return b.properties.capacity_mw - a.properties.capacity_mw;
+    });
+
+
+
+    L.geoJson(plants, {
+
+      // filter based on fuel source ((should only show hydro or coal))
+      filter: function(feature) {
+        if (feature.properties.fuel_source['Natural Gas'] && feature.properties.fuel_source.Coal) {
+          return feature;
+        }
+      },
+
+      pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng, {
+          color: 'white',
+          weight: .5,
+          fillColor: 'white',
+          // decreased opacity allowing markers under markers to be visible
+          fillOpacity: .6,
+          // proportional radii
+          radius: getRadius(feature.properties.capacity_mw),
+        });
+      },
+      // interactivity with map user, turns red on mouseover, back to yellow on mouseout
+      onEachFeature : function(feature,layer) {
+
+        // assign color based on dominant fuel source
+        if (feature.properties.fuel_source.Coal > feature.properties.fuel_source['Natural Gas']) {
+          layer.setStyle({
+            fillColor: '#E17922',
+            radius: getRadius(feature.properties.fuel_source.Coal)
+          });
+        } else if (feature.properties.fuel_source['Natural Gas'] > feature.properties.fuel_source.Coal) {
+          layer.setStyle({
+            fillColor: '#489272',
+            radius: getRadius(feature.properties.fuel_source['Natural Gas'])
+          });
+        }
+
+        layer.on('mouseover', function() {
+          // name of power plant in toolip
+          layer.bindTooltip("<b>Plant Name: " + layer.feature.properties.plant_name + "</b><br><b>Total Capacity:</b> "
+                            + layer.feature.properties.capacity_mw + " MW<br><b>Natural Gas: </b>"
+                            + layer.feature.properties.fuel_source['Natural Gas'] + " MW<br><b>Coal: </b>"
+                            + layer.feature.properties.fuel_source.Coal + " MW");
+          layer.setStyle({
+            fillColor: 'yellow'
+          });
+        });
+
+        layer.on('mouseout', function() {
+
+          if (feature.properties.fuel_source.Coal > feature.properties.fuel_source['Natural Gas']) {
+            layer.setStyle({
+              fillColor: '#E17922'
+            });
+          } else if (feature.properties.fuel_source['Natural Gas'] > feature.properties.fuel_source.Coal) {
+            layer.setStyle({
+              fillColor: '#489272'
+            });
+          }
+
+        });
+      }
+    }).addTo(map);
+
+    // defining function for getRadius
+
+    function getRadius(area) {
+      var radius = Math.sqrt(area/Math.PI);
+      return radius * .6;
+    }
+    console.log(plants);
+  </script>
+
+</body>
+
+</html>
